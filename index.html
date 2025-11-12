@@ -818,6 +818,7 @@
 
       // Load schedule when going to schedule page
       if (pageName === 'schedule') {
+        loadScheduleBlockedDates();
         loadSchedule();
       }
 
@@ -1393,8 +1394,18 @@
         .getAllBookings(selectedDate);
     }
 
+    function loadScheduleBlockedDates() {
+      google.script.run
+        .withSuccessHandler(function (dates) {
+          blockedDates = dates;
+        })
+        .getBlockedDates();
+    }
+
     function renderSchedule(bookings, selectedDate) {
       const tbody = document.getElementById('schedule-tbody');
+
+      console.log('✅ Loading schedule Block for date:', blockedDates);
 
       if (allRooms.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">กำลังโหลดข้อมูล...</td></tr>';
@@ -1409,6 +1420,13 @@
       allRooms.forEach(room => {
         room.computers.forEach(computer => {
           totalSlots += 2; // เช้า + บ่าย
+          const blocked = [...blockedDates].find(b =>
+            b.date === selectedDate &&
+            b.computer === computer.id &&
+            b.room === room.id
+          );
+          const isBlocked = !!blocked;
+          const blockedReason = currentLanguage === 'th' ? (blocked ? blocked.reason : '') : (blocked ? blocked.reasonEN : '');
 
           // Check if booked
           const morningBooking = bookings.find(b =>
@@ -1433,45 +1451,67 @@
           const morningIsMyBooking = morningBooking && morningBooking.email === currentUser?.email;
           const afternoonIsMyBooking = afternoonBooking && afternoonBooking.email === currentUser?.email;
 
-          rows.push(`
-            <tr class="hover:bg-gray-50 transition">
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${room.name}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${computer.id}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                  ${computer.os}
-                </span>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-center">
-                ${morningBooking ? `
-                  <div class="inline-flex flex-col items-center">
-                    <span class="px-3 py-1 text-xs rounded-full font-medium ${morningIsMyBooking ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' : 'bg-red-100 text-red-800 border border-red-300'}">
-                      ${morningIsMyBooking ? '🔑 จองของคุณ' : '🔒 จองแล้ว'}
-                    </span>
-                    <span class="text-xs text-gray-500 mt-1">${morningBooking.firstName} ${morningBooking.lastName}</span>
-                  </div>
-                ` : `
-                  <span class="px-3 py-1 text-xs rounded-full font-medium bg-green-100 text-green-800 border border-green-300">
-                    ✓ ว่าง
+          isBlocked
+            ? rows.push(`
+              <tr class="hover:bg-gray-50 transition">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${room.name}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${computer.id}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                    ${computer.os}
                   </span>
-                `}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-center">
-                ${afternoonBooking ? `
-                  <div class="inline-flex flex-col items-center">
-                    <span class="px-3 py-1 text-xs rounded-full font-medium ${afternoonIsMyBooking ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' : 'bg-red-100 text-red-800 border border-red-300'}">
-                      ${afternoonIsMyBooking ? '🔑 จองของคุณ' : '🔒 จองแล้ว'}
-                    </span>
-                    <span class="text-xs text-gray-500 mt-1">${afternoonBooking.firstName} ${afternoonBooking.lastName}</span>
-                  </div>
-                ` : `
-                  <span class="px-3 py-1 text-xs rounded-full font-medium bg-green-100 text-green-800 border border-green-300">
-                    ✓ ว่าง
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                  <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
+                    ${blockedReason}
                   </span>
-                `}
-              </td>
-            </tr>
-          `);
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                  <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
+                    ${blockedReason}
+                  </span>
+                </td>
+              </tr>
+            `)
+            : rows.push(`
+              <tr class="hover:bg-gray-50 transition">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${room.name}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${computer.id}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                    ${computer.os}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                  ${morningBooking ? `
+                    <div class="inline-flex flex-col items-center">
+                      <span class="px-3 py-1 text-xs rounded-full font-medium ${morningIsMyBooking ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' : 'bg-red-100 text-red-800 border border-red-300'}">
+                        ${morningIsMyBooking ? '🔑 จองของคุณ' : '🔒 จองแล้ว'}
+                      </span>
+                      <span class="text-xs text-gray-500 mt-1">${morningBooking.firstName} ${morningBooking.lastName}</span>
+                    </div>
+                  ` : `
+                    <span class="px-3 py-1 text-xs rounded-full font-medium bg-green-100 text-green-800 border border-green-300">
+                      ✓ ว่าง
+                    </span>
+                  `}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                  ${afternoonBooking ? `
+                    <div class="inline-flex flex-col items-center">
+                      <span class="px-3 py-1 text-xs rounded-full font-medium ${afternoonIsMyBooking ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' : 'bg-red-100 text-red-800 border border-red-300'}">
+                        ${afternoonIsMyBooking ? '🔑 จองของคุณ' : '🔒 จองแล้ว'}
+                      </span>
+                      <span class="text-xs text-gray-500 mt-1">${afternoonBooking.firstName} ${afternoonBooking.lastName}</span>
+                    </div>
+                  ` : `
+                    <span class="px-3 py-1 text-xs rounded-full font-medium bg-green-100 text-green-800 border border-green-300">
+                      ✓ ว่าง
+                    </span>
+                  `}
+                </td>
+              </tr>
+            `);
         });
       });
 
@@ -1732,6 +1772,7 @@
       if (!item) return null;
       return currentLanguage === 'th' ? item.reason : item.reasonEN;
     }
+
   </script>
 </body>
 
