@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบจองห้องและเครื่องคอม</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Sarabun', 'Prompt', sans-serif;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Loading Spinner */
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(99, 102, 241, 0.3);
+      border-radius: 50%;
+      border-top-color: rgb(99, 102, 241);
+      animation: spin 0.8s linear infinite;
+    }
+
+    .loading-overlay {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(2px);
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    /* Pulse animation for loading state */
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .pulse {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      .max-w-7xl {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+
+      nav .flex {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      nav button {
+        white-space: nowrap;
+        font-size: 0.875rem;
+        padding: 0.75rem 1rem;
+      }
+
+      .grid-cols-2 {
+        grid-template-columns: 1fr;
+      }
+
+      .grid-cols-3 {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 1.25rem !important;
+      }
+
+      h2 {
+        font-size: 1.5rem !important;
+      }
+
+      .text-2xl {
+        font-size: 1.25rem !important;
+      }
+
+      table {
+        font-size: 0.75rem;
+      }
+
+      .px-6 {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+      }
+
+      .grid.grid-cols-12 {
+        grid-template-columns: 1fr;
+      }
+
+      .grid.grid-cols-12>div {
+        grid-column: span 12;
+      }
+    }
+
+    @media (max-width: 640px) {
+      header .flex {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+      }
+
+      #user-email {
+        order: -1;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50" onload="loadConfig()">
+
+  <!-- Header -->
+  <header class="bg-white shadow-sm border-b">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-indigo-600" id="app-title">ระบบจองห้องและเครื่องคอม</h1>
+      <div class="flex items-center gap-4">
+        <!-- Language Selector -->
+        <select id="header-language" onchange="changeLanguage(this.value)" class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-600">
+          <option value="th">🇹🇭 ไทย</option>
+          <option value="en">🇬🇧 English</option>
+        </select>
+        <span id="user-email" class="text-sm text-gray-600"></span>
+        <button onclick="logout()" class="text-red-600 hover:text-red-700 text-sm" id="logout-btn">
+          ออกจากระบบ
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation -->
+  <nav class="bg-white border-b">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex gap-6">
+        <button onclick="showPage('history')" id="nav-history" class="py-3 px-4 border-b-2 border-indigo-600 text-indigo-600">
+          <span class="nav-text" data-th="ประวัติการจอง" data-en="History">ประวัติการจอง</span>
+        </button>
+        <button onclick="showPage('booking')" id="nav-booking" class="py-3 px-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800">
+          <span class="nav-text" data-th="จองใหม่" data-en="New Booking">จองใหม่</span>
+        </button>
+        <button onclick="showPage('schedule')" id="nav-schedule" class="py-3 px-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800">
+          <span class="nav-text" data-th="ตารางการจอง" data-en="Schedule">ตารางการจอง</span>
+        </button>
+        <button onclick="showPage('profile')" id="nav-profile" class="py-3 px-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800">
+          <span class="nav-text" data-th="โปรไฟล์" data-en="Profile">โปรไฟล์</span>
+        </button>
+        <button onclick="showPage('config')" id="nav-config" class="py-3 px-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800">
+          <span class="nav-text" data-th="ตั้งค่า" data-en="Settings">ตั้งค่า</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    <!-- History Page -->
+    <div id="page-history" class="page-content">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <h2 class="text-2xl font-bold text-gray-800" data-th="ประวัติการจอง" data-en="Booking History">ประวัติการจอง
+        </h2>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="filterBookings('all')" id="filter-all" class="px-4 py-2 rounded-lg text-sm bg-indigo-600 text-white">
+            <span data-th="ทั้งหมด" data-en="All">ทั้งหมด</span>
+          </button>
+          <button onclick="filterBookings('upcoming')" id="filter-upcoming" class="px-4 py-2 rounded-lg text-sm bg-white text-gray-700 border">
+            <span data-th="กำลังจะถึง" data-en="Upcoming">กำลังจะถึง</span>
+          </button>
+          <button onclick="filterBookings('byDate')" id="filter-byDate" class="px-4 py-2 rounded-lg text-sm bg-white text-gray-700 border">
+            <span data-th="เรียงตามวัน" data-en="By Date">เรียงตามวัน</span>
+          </button>
+        </div>
+      </div>
+      <div id="bookings-list" class="space-y-4">
+        <div class="bg-white rounded-lg shadow p-8 text-center">
+          <p class="text-gray-500" data-th="กำลังโหลดข้อมูล..." data-en="Loading...">กำลังโหลดข้อมูล...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Booking Page -->
+    <div id="page-booking" class="page-content hidden">
+      <div class="max-w-3xl mx-auto">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">จองห้องและเครื่องคอม</h2>
+
+        <!-- Step Indicator -->
+        <div class="flex items-center justify-between mb-8">
+          <div class="flex items-center">
+            <div id="step-1-indicator"
+              class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-indigo-600 text-white">1</div>
+            <div id="step-1-line" class="w-24 h-1 bg-gray-200"></div>
+          </div>
+          <div class="flex items-center">
+            <div id="step-2-indicator"
+              class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-200 text-gray-500">2
+            </div>
+            <div id="step-2-line" class="w-24 h-1 bg-gray-200"></div>
+          </div>
+          <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-200 text-gray-500"
+            id="step-3-indicator">3</div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-8">
+          <!-- Step 1: Select OS and Usage -->
+          <div id="step-1" class="booking-step">
+            <div class="space-y-6">
+              <div>
+                <label class="block text-lg font-semibold text-gray-700 mb-3">เลือกระบบปฏิบัติการ</label>
+                <div class="grid grid-cols-2 gap-4">
+                  <button onclick="selectOS('Mac')" id="os-mac" class="p-4 border-2 border-gray-200 rounded-lg hover:border-gray-300">
+                    <p class="font-medium">Mac</p>
+                  </button>
+                  <button onclick="selectOS('Windows')" id="os-windows" class="p-4 border-2 border-gray-200 rounded-lg hover:border-gray-300">
+                    <p class="font-medium">Windows</p>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-lg font-semibold text-gray-700 mb-3">เลือกการใช้งาน (เลือกได้หลายรายการ)</label>
+                <div class="grid grid-cols-2 gap-3" id="usage-options">
+                  <!-- จะถูกสร้างด้วย JavaScript -->
+                </div>
+              </div>
+
+              <button onclick="goToStep(2)" id="step1-next" disabled class="w-full bg-gray-300 text-white py-3 rounded-lg font-medium cursor-not-allowed">
+                ถัดไป
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 2: Select Date, Time, Room, Computer -->
+          <div id="step-2" class="booking-step hidden">
+            <div class="space-y-6">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">วันที่</label>
+                <input type="date" id="booking-date" onchange="updateRoomList()" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">ช่วงเวลา</label>
+                <div class="grid grid-cols-3 gap-3">
+                  <button onclick="selectTime('เช้า')" id="time-morning" class="p-3 border-2 border-gray-200 rounded-lg">เช้า</button>
+                  <button onclick="selectTime('บ่าย')" id="time-afternoon" class="p-3 border-2 border-gray-200 rounded-lg">บ่าย</button>
+                  <button onclick="selectTime('ทั้งวัน')" id="time-allday" class="p-3 border-2 border-gray-200 rounded-lg">ทั้งวัน</button>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">เลือกห้องและเครื่อง</label>
+
+                <!-- Loading State -->
+                <div id="rooms-loading" class="hidden">
+                  <div class="flex items-center justify-center py-12 space-x-3">
+                    <div class="loading-spinner"></div>
+                    <span class="text-gray-600">กำลังโหลดข้อมูลห้อง...</span>
+                  </div>
+                </div>
+
+                <!-- Rooms List -->
+                <div id="rooms-list" class="space-y-3">
+                  <!-- จะถูกสร้างด้วย JavaScript -->
+                </div>
+              </div>
+
+              <div class="flex gap-3">
+                <button onclick="goToStep(1)" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300">
+                  ย้อนกลับ
+                </button>
+                <button onclick="goToStep(3)" id="step2-next" disabled class="flex-1 bg-gray-300 text-white py-3 rounded-lg cursor-not-allowed">
+                  ถัดไป
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Fill Booking Form -->
+          <div id="step-3" class="booking-step hidden">
+            <div class="space-y-4">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ</label>
+                  <input type="text" id="form-firstname" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">นามสกุล</label>
+                  <input type="text" id="form-lastname" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรศัพท์</label>
+                <input type="tel" id="form-phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">รหัสนักศึกษา</label>
+                <input type="text" id="form-studentid" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">วิชาที่เรียน</label>
+                <input type="text" id="form-subject" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">เหตุผลการขอใช้</label>
+                <textarea id="form-reason" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent"></textarea>
+              </div>
+
+              <div class="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
+                <input type="checkbox" id="form-consent" class="mt-1">
+                <label for="form-consent" class="text-sm text-gray-700">
+                  ข้าพเจ้ายินยอมให้บันทึกข้อมูลและนำข้อมูลไปใช้ภายในมหาวิทยาลัย เพื่อวัตถุประสงค์ในการจัดการและปรับปรุงการให้บริการ
+                </label>
+              </div>
+
+              <div class="flex gap-3">
+                <button onclick="goToStep(2)" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300">
+                  ย้อนกลับ
+                </button>
+                <button onclick="submitBooking()" id="step3-submit" class="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700">
+                  ยืนยันการจอง
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Schedule Page -->
+    <div id="page-schedule" class="page-content hidden">
+      <h2 class="text-2xl font-bold text-gray-800 mb-6">ตารางการจองทั้งหมด</h2>
+      <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex gap-4 mb-6">
+          <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-700 mb-2">เลือกวันที่</label>
+            <input type="date" id="schedule-date" onchange="loadSchedule()" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+          </div>
+          <div class="flex items-end">
+            <button onclick="loadSchedule()" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+              รีเฟรช
+            </button>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="schedule-loading" class="hidden">
+          <div class="flex items-center justify-center py-12 space-x-3">
+            <div class="loading-spinner"></div>
+            <span class="text-gray-600">กำลังโหลดตารางการจอง...</span>
+          </div>
+        </div>
+
+        <!-- Schedule Table -->
+        <div id="schedule-container" class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ห้อง</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เครื่อง</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OS</th>
+                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">เช้า
+                  (08:00-12:00)</th>
+                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">บ่าย
+                  (13:00-17:00)</th>
+              </tr>
+            </thead>
+            <tbody id="schedule-tbody" class="bg-white divide-y divide-gray-200">
+              <!-- จะถูกสร้างด้วย JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Legend -->
+        <div class="mt-6 flex flex-wrap gap-4 items-center justify-center text-sm">
+          <div class="flex items-center gap-2">
+            <div class="w-4 h-4 rounded bg-green-100 border border-green-300"></div>
+            <span class="text-gray-600">ว่าง</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="w-4 h-4 rounded bg-red-100 border border-red-300"></div>
+            <span class="text-gray-600">จองแล้ว</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="w-4 h-4 rounded bg-yellow-100 border border-yellow-300"></div>
+            <span class="text-gray-600">จองของคุณ</span>
+          </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div id="schedule-stats" class="mt-6 grid grid-cols-3 gap-4">
+          <!-- จะถูกสร้างด้วย JavaScript -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile Page -->
+    <div id="page-profile" class="page-content hidden">
+      <div class="max-w-2xl mx-auto">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6" data-th="โปรไฟล์ของฉัน" data-en="My Profile">โปรไฟล์ของฉัน
+        </h2>
+        <div class="bg-white rounded-lg shadow-lg p-8">
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1" data-th="ชื่อ" data-en="First Name">ชื่อ</label>
+                <input type="text" id="profile-firstname" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1" data-th="นามสกุล" data-en="Last Name">นามสกุล</label>
+                <input type="text" id="profile-lastname" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" data-th="เบอร์โทรศัพท์" data-en="Phone Number">เบอร์โทรศัพท์</label>
+              <input type="tel" id="profile-phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" data-th="รหัสนักศึกษา" data-en="Student ID">รหัสนักศึกษา</label>
+              <input type="text" id="profile-studentid" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" data-th="ภาษา" data-en="Language">ภาษา</label>
+              <select id="profile-language" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+                <option value="th">🇹🇭 ภาษาไทย (Thai)</option>
+                <option value="en">🇬🇧 ภาษาอังกฤษ (English)</option>
+              </select>
+            </div>
+
+            <button onclick="saveProfile()" class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 font-medium">
+              <span data-th="บันทึกข้อมูล" data-en="Save Profile">บันทึกข้อมูล</span>
+            </button>
+
+            <p class="text-sm text-gray-500 text-center mt-4"
+              data-th="ข้อมูลที่บันทึกไว้จะถูกนำมาใช้อัตโนมัติเมื่อทำการจอง"
+              data-en="Saved information will be automatically used when making bookings">
+              ข้อมูลที่บันทึกไว้จะถูกนำมาใช้อัตโนมัติเมื่อทำการจอง
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Config Page -->
+    <div id="page-config" class="page-content hidden">
+      <div class="max-w-4xl mx-auto">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6" data-th="ตั้งค่าระบบ" data-en="System Settings">ตั้งค่าระบบ
+        </h2>
+
+        <!-- Booking Period Settings -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4" data-th="ช่วงเวลาเปิดให้จอง" data-en="Booking Period">
+            ช่วงเวลาเปิดให้จอง</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2" data-th="วันที่เริ่มต้น" data-en="Start Date">วันที่เริ่มต้น</label>
+              <input type="date" id="config-start-date" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2" data-th="วันที่สิ้นสุด" data-en="End Date">วันที่สิ้นสุด</label>
+              <input type="date" id="config-end-date" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600">
+            </div>
+          </div>
+          <p class="text-sm text-gray-500 mt-2"
+            data-th="ระบบจะเปิดให้จองได้เฉพาะในช่วงวันที่กำหนด (เว้นว่างไว้หากไม่ต้องการจำกัด)"
+            data-en="The system will only allow bookings within the specified date range (leave blank for no restriction)">
+            ระบบจะเปิดให้จองได้เฉพาะในช่วงวันที่กำหนด (เว้นว่างไว้หากไม่ต้องการจำกัด)
+          </p>
+        </div>
+
+        <!-- Blocked Dates -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4" data-th="วันที่ปิดการจอง" data-en="Blocked Dates">
+            วันที่ปิดการจอง</h3>
+
+          <div class="mb-4 p-4 bg-gray-50 rounded-lg">
+            <div class="space-y-3">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div>
+                  <label class="block text-xs text-gray-600 mb-1" data-th="วันที่" data-en="Date">วันที่</label>
+                  <input type="date" id="blocked-date" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-600 mb-1" data-th="ห้อง" data-en="Room">ห้อง</label>
+                  <select id="blocked-room" onchange="updateBlockedComputers()" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="">-- เลือกห้อง --</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-600 mb-1" data-th="เครื่อง" data-en="Computer">เครื่อง</label>
+                  <select id="blocked-computer" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="">-- เลือกเครื่อง --</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-xs text-gray-600 mb-1" data-th="เหตุผล (ไทย)" data-en="Reason (Thai)">เหตุผล (ไทย)</label>
+                  <input type="text" id="blocked-reason-th" placeholder="เช่น วันหยุด, ซ่อมบำรุง" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-600 mb-1" data-th="เหตุผล (อังกฤษ)" data-en="Reason (English)">เหตุผล (อังกฤษ)</label>
+                  <input type="text" id="blocked-reason-en" placeholder="e.g. Holiday, Maintenance" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+              </div>
+              <button onclick="addBlockedDate()" class="w-full md:w-auto px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm">
+                <span data-th="+ เพิ่มวันปิดจอง" data-en="+ Add Blocked Date">+ เพิ่มวันปิดจอง</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="blocked-dates-list" class="space-y-2">
+            <!-- Will be populated by JavaScript -->
+          </div>
+        </div>
+
+        <!-- Email Settings -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4" data-th="การตั้งค่าอีเมล" data-en="Email Settings">
+            การตั้งค่าอีเมล</h3>
+
+          <div class="space-y-4">
+            <div class="flex items-center gap-3">
+              <input type="checkbox" id="config-email-enabled" class="w-4 h-4">
+              <label for="config-email-enabled" class="text-sm font-medium text-gray-700" data-th="เปิดใช้งานการส่งอีเมลแจ้งเตือน" data-en="Enable email notifications">
+                เปิดใช้งานการส่งอีเมลแจ้งเตือน
+              </label>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2" data-th="อีเมลผู้ดูแลระบบ (จะได้รับสำเนาการจอง)" data-en="Admin Email (will receive booking copies)">
+                อีเมลผู้ดูแลระบบ (จะได้รับสำเนาการจอง)
+              </label>
+              <input type="email" id="config-admin-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600">
+            </div>
+          </div>
+        </div>
+
+        <!-- Save Button -->
+        <div class="flex gap-3">
+          <button onclick="saveConfig()" class="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 font-medium">
+            <span data-th="บันทึกการตั้งค่า" data-en="Save Settings">บันทึกการตั้งค่า</span>
+          </button>
+          <button onclick="loadConfig()" class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium">
+            <span data-th="รีเฟรช" data-en="Refresh">รีเฟรช</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Global variables
+    let currentUser = null;
+    let allRooms = [];
+    let allBookings = [];
+    let currentBookingsForDate = []; // เก็บการจองของวันที่เลือก
+    let currentFilter = 'all';
+    let userProfile = null;
+    let systemConfig = {};
+    let blockedDates = [];
+    let currentLanguage = 'th';
+
+    // Booking form state
+    let selectedOS = '';
+    let selectedUsage = [];
+    let selectedDate = '';
+    let selectedTime = '';
+    let selectedRoom = '';
+    let selectedComputer = '';
+
+    const usageOptions = ['Editor', 'Color', '3D', 'Visual effect', 'Graphic', 'Sound'];
+    
+    // Initialize
+    window.onload = function() {
+      loadCurrentUser();
+      loadRooms();
+      loadUserProfile();
+      loadUserBookings();
+      loadConfig();
+      loadBlockedDates();
+      initializeUsageOptions();
+      setMinDate();
+    };
+
+    function loadCurrentUser() {
+      google.script.run.withSuccessHandler(function(user) {
+        currentUser = user;
+        document.getElementById('user-email').textContent = user.email;
+      }).getCurrentUser();
+    }
+
+    function loadRooms() {
+      google.script.run.withSuccessHandler(function(rooms) {
+        allRooms = rooms;
+        renderRoomsList();
+        loadSchedule();
+        updateBlockedRoomOptions();
+      }).getRooms();
+    }
+    
+    function updateBlockedRoomOptions() {
+      const select = document.getElementById('blocked-room');
+      select.innerHTML = '<option value="">-- ' + (currentLanguage === 'th' ? 'เลือกห้อง' : 'Select Room') + ' --</option>';
+      
+      allRooms.forEach(room => {
+        const option = document.createElement('option');
+        option.value = room.id;
+        option.textContent = room.name;
+        select.appendChild(option);
+      });
+    }
+    
+    function updateBlockedComputers() {
+      const roomId = document.getElementById('blocked-room').value;
+      const select = document.getElementById('blocked-computer');
+      select.innerHTML = '<option value="">-- ' + (currentLanguage === 'th' ? 'เลือกเครื่อง' : 'Select Computer') + ' --</option>';
+      
+      if (!roomId) return;
+      
+      const room = allRooms.find(r => r.id === roomId);
+      if (!room) return;
+      
+      room.computers.forEach(computer => {
+        const option = document.createElement('option');
+        option.value = computer.id;
+        option.textContent = computer.id + ' (' + computer.os + ')';
+        select.appendChild(option);
+      });
+    }
+
+    function loadUserProfile() {
+      google.script.run.withSuccessHandler(function(profile) {
+        if (profile) {
+          userProfile = profile;
+          document.getElementById('profile-firstname').value = profile.firstName || '';
+          document.getElementById('profile-lastname').value = profile.lastName || '';
+          document.getElementById('profile-phone').value = profile.phone || '';
+          document.getElementById('profile-studentid').value = profile.studentId || '';
+          document.getElementById('profile-language').value = profile.language || 'th';
+          
+          // Set language
+          currentLanguage = profile.language || 'th';
+          document.getElementById('header-language').value = currentLanguage;
+          updateLanguage();
+        }
+      }).getUserProfile();
+    }
+    
+    // Language functions
+    function changeLanguage(lang) {
+      currentLanguage = lang;
+      updateLanguage();
+    }
+    
+    function updateLanguage() {
+      document.querySelectorAll('[data-th]').forEach(el => {
+        const text = currentLanguage === 'th' ? el.getAttribute('data-th') : el.getAttribute('data-en');
+        if (text) {
+          if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+            el.placeholder = text;
+          } else {
+            el.textContent = text;
+          }
+        }
+      });
+      
+      // Update page title
+      if (currentLanguage === 'en') {
+        document.getElementById('app-title').textContent = 'Room & Computer Booking System';
+      } else {
+        document.getElementById('app-title').textContent = 'ระบบจองห้องและเครื่องคอม';
+      }
+    }
+
+    function loadUserBookings() {
+      google.script.run
+        .withSuccessHandler(function(bookings) {
+          console.log('Loaded bookings:', bookings);
+          allBookings = bookings;
+          renderBookings();
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error loading bookings:', error);
+          alert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + error.message);
+        })
+        .getUserBookings();
+    }
+
+    function initializeUsageOptions() {
+      const container = document.getElementById('usage-options');
+      container.innerHTML = usageOptions.map(usage => `
+        <button onclick="toggleUsage('${usage}')" id="usage-${usage.replace(/\s/g, '-')}" 
+                class="p-3 border-2 border-gray-200 rounded-lg hover:border-gray-300 text-sm">
+          ${usage}
+        </button>
+      `).join('');
+    }
+
+    function setMinDate() {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('booking-date').min = today;
+      document.getElementById('schedule-date').value = today;
+    }
+
+    // Page navigation
+    function showPage(pageName) {
+      // Hide all pages
+      document.querySelectorAll('.page-content').forEach(page => {
+        page.classList.add('hidden');
+      });
+      
+      // Remove active class from all nav buttons
+      document.querySelectorAll('nav button').forEach(btn => {
+        btn.className = 'py-3 px-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800';
+      });
+      
+      // Show selected page
+      document.getElementById('page-' + pageName).classList.remove('hidden');
+      document.getElementById('nav-' + pageName).className = 'py-3 px-4 border-b-2 border-indigo-600 text-indigo-600';
+      
+      // Reset booking form when going to booking page
+      if (pageName === 'booking') {
+        resetBookingForm();
+      }
+      
+      // Load schedule when going to schedule page
+      if (pageName === 'schedule') {
+        loadSchedule();
+      }
+      
+      // Load config when going to config page
+      if (pageName === 'config') {
+        loadConfig();
+        loadBlockedDates();
+      }
+    }
+
+    function logout() {
+      window.top.location.href = 'about:blank';
+    }
+
+    // Booking functions
+    function selectOS(os) {
+      selectedOS = os;
+      document.getElementById('os-mac').className = 'p-4 border-2 border-gray-200 rounded-lg hover:border-gray-300';
+      document.getElementById('os-windows').className = 'p-4 border-2 border-gray-200 rounded-lg hover:border-gray-300';
+      document.getElementById('os-' + os.toLowerCase()).className = 'p-4 border-2 border-indigo-600 bg-indigo-50 rounded-lg';
+      updateStep1Button();
+    }
+
+    function toggleUsage(usage) {
+      const index = selectedUsage.indexOf(usage);
+      const btn = document.getElementById('usage-' + usage.replace(/\s/g, '-'));
+      
+      if (index > -1) {
+        selectedUsage.splice(index, 1);
+        btn.className = 'p-3 border-2 border-gray-200 rounded-lg hover:border-gray-300 text-sm';
+      } else {
+        selectedUsage.push(usage);
+        btn.className = 'p-3 border-2 border-indigo-600 bg-indigo-50 text-indigo-700 rounded-lg text-sm';
+      }
+    }
+
+    function updateStep1Button() {
+      const btn = document.getElementById('step1-next');
+      if (selectedOS) {
+        btn.disabled = false;
+        btn.className = 'w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 font-medium';
+      } else {
+        btn.disabled = true;
+        btn.className = 'w-full bg-gray-300 text-white py-3 rounded-lg font-medium cursor-not-allowed';
+      }
+    }
+
+    function selectTime(time) {
+      selectedTime = time;
+      document.getElementById('time-morning').className = 'p-3 border-2 border-gray-200 rounded-lg';
+      document.getElementById('time-afternoon').className = 'p-3 border-2 border-gray-200 rounded-lg';
+      document.getElementById('time-allday').className = 'p-3 border-2 border-gray-200 rounded-lg';
+      
+      if (time === 'เช้า') document.getElementById('time-morning').className = 'p-3 border-2 border-indigo-600 bg-indigo-50 rounded-lg';
+      if (time === 'บ่าย') document.getElementById('time-afternoon').className = 'p-3 border-2 border-indigo-600 bg-indigo-50 rounded-lg';
+      if (time === 'ทั้งวัน') document.getElementById('time-allday').className = 'p-3 border-2 border-indigo-600 bg-indigo-50 rounded-lg';
+      
+      // รีเซ็ตการเลือกห้องเพราะสถานะอาจเปลี่ยน
+      selectedRoom = '';
+      selectedComputer = '';
+      
+      // แสดง loading animation
+      const roomsList = document.getElementById('rooms-list');
+      roomsList.classList.add('pulse');
+      
+      // อัพเดทรายการห้องตามเวลาที่เลือก
+      setTimeout(() => {
+        renderRoomsList();
+        roomsList.classList.remove('pulse');
+        updateStep2Button();
+      }, 300);
+    }
+
+    function updateRoomList() {
+      selectedDate = document.getElementById('booking-date').value;
+      
+      if (!selectedDate) {
+        renderRoomsList();
+        updateStep2Button();
+        return;
+      }
+      
+      // ตรวจสอบว่าวันที่เลือกอยู่ในช่วงที่อนุญาตหรือไม่
+      if (systemConfig.bookingStartDate && selectedDate < systemConfig.bookingStartDate) {
+        alert(currentLanguage === 'th' ? 
+          'ยังไม่เปิดให้จองในวันที่เลือก กรุณาเลือกวันที่ตั้งแต่ ' + formatDate(systemConfig.bookingStartDate) :
+          'Booking not available for selected date. Please select from ' + formatDate(systemConfig.bookingStartDate));
+        document.getElementById('booking-date').value = '';
+        return;
+      }
+      
+      if (systemConfig.bookingEndDate && selectedDate > systemConfig.bookingEndDate) {
+        alert(currentLanguage === 'th' ? 
+          'ปิดรับจองแล้วสำหรับวันที่เลือก กรุณาเลือกวันที่ก่อน ' + formatDate(systemConfig.bookingEndDate) :
+          'Booking closed for selected date. Please select before ' + formatDate(systemConfig.bookingEndDate));
+        document.getElementById('booking-date').value = '';
+        return;
+      }
+      
+      // ตรวจสอบว่าวันที่ถูกปิดหรือไม่
+      if (isDateBlocked(selectedDate)) {
+        const reason = getBlockedDateReason(selectedDate);
+        alert((currentLanguage === 'th' ? 'วันนี้ปิดให้บริการ: ' : 'This date is blocked: ') + reason);
+        document.getElementById('booking-date').value = '';
+        return;
+      }
+      
+      // แสดง loading
+      showRoomsLoading();
+      
+      // โหลดข้อมูลการจองของวันที่เลือก
+      google.script.run
+        .withSuccessHandler(function(bookings) {
+          console.log('Bookings for selected date:', bookings);
+          currentBookingsForDate = bookings;
+          
+          // ซ่อน loading และแสดงผลลัพธ์
+          hideRoomsLoading();
+          renderRoomsList();
+          updateStep2Button();
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error loading bookings for date:', error);
+          currentBookingsForDate = [];
+          
+          // ซ่อน loading และแสดงผลลัพธ์
+          hideRoomsLoading();
+          renderRoomsList();
+          updateStep2Button();
+        })
+        .getAllBookings(selectedDate);
+    }
+    
+    function showRoomsLoading() {
+      document.getElementById('rooms-loading').classList.remove('hidden');
+      document.getElementById('rooms-list').classList.add('hidden');
+      
+      // Disable time buttons และ next button ระหว่างโหลด
+      document.getElementById('time-morning').disabled = true;
+      document.getElementById('time-afternoon').disabled = true;
+      document.getElementById('time-allday').disabled = true;
+      document.getElementById('step2-next').disabled = true;
+    }
+    
+    function hideRoomsLoading() {
+      document.getElementById('rooms-loading').classList.add('hidden');
+      document.getElementById('rooms-list').classList.remove('hidden');
+      document.getElementById('rooms-list').classList.add('fade-in');
+      
+      // Enable time buttons
+      document.getElementById('time-morning').disabled = false;
+      document.getElementById('time-afternoon').disabled = false;
+      document.getElementById('time-allday').disabled = false;
+    }
+
+    function renderRoomsList() {
+      const container = document.getElementById('rooms-list');
+      const filteredRooms = getFilteredRooms();
+      
+      if (filteredRooms.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center py-4">ไม่พบห้องและเครื่องที่ตรงตามเงื่อนไข</p>';
+        return;
+      }
+      
+      container.innerHTML = filteredRooms.map(room => `
+        <div class="border rounded-lg p-4 fade-in">
+          <h4 class="font-semibold text-gray-800 mb-3">${room.name}</h4>
+          <div class="grid grid-cols-2 gap-2">
+            ${room.computers.map(computer => {
+              // ตรวจสอบว่าเครื่องนี้ถูกจองไปแล้วหรือยัง
+              const isBooked = checkIfBooked(room.id, computer.id);
+              const bookingInfo = getBookingInfo(room.id, computer.id);
+              
+              return `
+                <button onclick="selectRoomComputer('${room.id}', '${computer.id}')" 
+                        id="room-${room.id}-${computer.id}"
+                        class="p-3 border-2 rounded-lg text-left text-sm transition-all ${isBooked ? 'border-red-300 bg-red-50 opacity-60 cursor-not-allowed' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'}"
+                        ${isBooked ? 'disabled' : ''}>
+                  <p class="font-medium">เครื่องที่ ${computer.id}</p>
+                  <p class="text-xs text-gray-600">${computer.os}</p>
+                  <p class="text-xs text-gray-500">${computer.specs.join(', ')}</p>
+                  ${bookingInfo ? `<p class="text-xs text-red-600 mt-1 font-medium">🔒 ${bookingInfo}</p>` : '<p class="text-xs text-green-600 mt-1 font-medium">✓ ว่าง</p>'}
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    function checkIfBooked(roomId, computerId) {
+      if (!selectedDate || !selectedTime) return false;
+      
+      return currentBookingsForDate.some(booking => {
+        if (booking.room !== roomId || booking.computer !== computerId) {
+          return false;
+        }
+        
+        // ถ้าจองทั้งวัน = ไม่ว่าง
+        if (booking.time === 'ทั้งวัน' || selectedTime === 'ทั้งวัน') {
+          return true;
+        }
+        
+        // ถ้าเวลาตรงกัน = ไม่ว่าง
+        if (booking.time === selectedTime) {
+          return true;
+        }
+        
+        return false;
+      });
+    }
+    
+    function getBookingInfo(roomId, computerId) {
+      if (!selectedDate || !selectedTime) return null;
+      
+      const bookings = currentBookingsForDate.filter(b => 
+        b.room === roomId && b.computer === computerId
+      );
+      
+      if (bookings.length === 0) return null;
+      
+      const timeInfo = bookings.map(b => b.time).join(', ');
+      return `จองแล้ว: ${timeInfo}`;
+    }
+
+    function getFilteredRooms() {
+      if (!selectedOS && selectedUsage.length === 0) return allRooms;
+      
+      return allRooms.map(room => ({
+        ...room,
+        computers: room.computers.filter(computer => {
+          const osMatch = !selectedOS || computer.os === selectedOS;
+          const usageMatch = selectedUsage.length === 0 || 
+            selectedUsage.every(usage => computer.specs.includes(usage));
+          return osMatch && usageMatch;
+        })
+      })).filter(room => room.computers.length > 0);
+    }
+
+    function selectRoomComputer(roomId, computerId) {
+      // ตรวจสอบว่าถูกจองไปแล้วหรือยัง
+      if (checkIfBooked(roomId, computerId)) {
+        alert(currentLanguage === 'th' ? 
+          'เครื่องนี้ถูกจองไปแล้วในช่วงเวลาที่เลือก' : 
+          'This computer is already booked for the selected time');
+        return;
+      }
+      
+      selectedRoom = roomId;
+      selectedComputer = computerId;
+      
+      // ตรวจสอบว่าเครื่องนี้ปิดจองหรือไม่
+      if (isDateBlocked(selectedDate)) {
+        const reason = getBlockedDateReason(selectedDate);
+        alert((currentLanguage === 'th' ? 'เครื่องนี้ปิดให้บริการ: ' : 'This computer is blocked: ') + reason);
+        selectedRoom = '';
+        selectedComputer = '';
+        return;
+      }
+      
+      // Reset all buttons
+      document.querySelectorAll('[id^="room-"]').forEach(btn => {
+        if (!btn.disabled) {
+          btn.className = 'p-3 border-2 border-gray-200 rounded-lg hover:border-gray-300 text-left text-sm';
+        }
+      });
+      
+      // Highlight selected
+      const selectedBtn = document.getElementById('room-' + roomId + '-' + computerId);
+      if (selectedBtn && !selectedBtn.disabled) {
+        selectedBtn.className = 'p-3 border-2 border-indigo-600 bg-indigo-50 rounded-lg text-left text-sm';
+      }
+      
+      updateStep2Button();
+    }
+
+    function updateStep2Button() {
+      const btn = document.getElementById('step2-next');
+      if (selectedDate && selectedTime && selectedRoom && selectedComputer) {
+        btn.disabled = false;
+        btn.className = 'flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700';
+      } else {
+        btn.disabled = true;
+        btn.className = 'flex-1 bg-gray-300 text-white py-3 rounded-lg cursor-not-allowed';
+      }
+    }
+
+    function goToStep(step) {
+      // Hide all steps
+      document.querySelectorAll('.booking-step').forEach(el => el.classList.add('hidden'));
+      
+      // Show selected step
+      document.getElementById('step-' + step).classList.remove('hidden');
+      
+      // Update indicators
+      for (let i = 1; i <= 3; i++) {
+        const indicator = document.getElementById('step-' + i + '-indicator');
+        if (i < step) {
+          indicator.className = 'w-10 h-10 rounded-full flex items-center justify-center font-bold bg-indigo-600 text-white';
+          if (i < 3) document.getElementById('step-' + i + '-line').className = 'w-24 h-1 bg-indigo-600';
+        } else if (i === step) {
+          indicator.className = 'w-10 h-10 rounded-full flex items-center justify-center font-bold bg-indigo-600 text-white';
+        } else {
+          indicator.className = 'w-10 h-10 rounded-full flex items-center justify-center font-bold bg-gray-200 text-gray-500';
+          if (i < 3) document.getElementById('step-' + i + '-line').className = 'w-24 h-1 bg-gray-200';
+        }
+      }
+      
+      // Load profile data in step 3
+      if (step === 3 && userProfile) {
+        document.getElementById('form-firstname').value = userProfile.firstName || '';
+        document.getElementById('form-lastname').value = userProfile.lastName || '';
+        document.getElementById('form-phone').value = userProfile.phone || '';
+        document.getElementById('form-studentid').value = userProfile.studentId || '';
+      }
+    }
+
+    function submitBooking() {
+      const consent = document.getElementById('form-consent').checked;
+      if (!consent) {
+        alert('กรุณายินยอมให้บันทึกข้อมูล');
+        return;
+      }
+      
+      const bookingData = {
+        firstName: document.getElementById('form-firstname').value,
+        lastName: document.getElementById('form-lastname').value,
+        phone: document.getElementById('form-phone').value,
+        studentId: document.getElementById('form-studentid').value,
+        subject: document.getElementById('form-subject').value,
+        reason: document.getElementById('form-reason').value,
+        os: selectedOS,
+        usage: selectedUsage,
+        date: selectedDate,
+        time: selectedTime,
+        room: selectedRoom,
+        computer: selectedComputer
+      };
+      
+      // Validate
+      if (!bookingData.firstName || !bookingData.lastName || !bookingData.phone || 
+          !bookingData.studentId || !bookingData.subject || !bookingData.reason) {
+        alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+        return;
+      }
+      
+      // Show loading
+      document.getElementById('step3-submit').disabled = true;
+      document.getElementById('step3-submit').textContent = 'กำลังบันทึก...';
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            alert(result.message);
+            resetBookingForm();
+            loadUserBookings();
+            showPage('history');
+          } else {
+            alert(result.error);
+          }
+          document.getElementById('step3-submit').disabled = false;
+          document.getElementById('step3-submit').textContent = 'ยืนยันการจอง';
+        })
+        .withFailureHandler(function(error) {
+          alert('เกิดข้อผิดพลาด: ' + error.message);
+          document.getElementById('step3-submit').disabled = false;
+          document.getElementById('step3-submit').textContent = 'ยืนยันการจอง';
+        })
+        .createBooking(bookingData);
+    }
+
+    function resetBookingForm() {
+      selectedOS = '';
+      selectedUsage = [];
+      selectedDate = '';
+      selectedTime = '';
+      selectedRoom = '';
+      selectedComputer = '';
+      
+      goToStep(1);
+      
+      // Reset OS buttons
+      document.getElementById('os-mac').className = 'p-4 border-2 border-gray-200 rounded-lg hover:border-gray-300';
+      document.getElementById('os-windows').className = 'p-4 border-2 border-gray-200 rounded-lg hover:border-gray-300';
+      
+      // Reset usage buttons
+      usageOptions.forEach(usage => {
+        const btn = document.getElementById('usage-' + usage.replace(/\s/g, '-'));
+        if (btn) btn.className = 'p-3 border-2 border-gray-200 rounded-lg hover:border-gray-300 text-sm';
+      });
+      
+      // Reset time buttons
+      document.getElementById('time-morning').className = 'p-3 border-2 border-gray-200 rounded-lg';
+      document.getElementById('time-afternoon').className = 'p-3 border-2 border-gray-200 rounded-lg';
+      document.getElementById('time-allday').className = 'p-3 border-2 border-gray-200 rounded-lg';
+      
+      // Clear form inputs
+      document.getElementById('booking-date').value = '';
+      document.getElementById('form-firstname').value = '';
+      document.getElementById('form-lastname').value = '';
+      document.getElementById('form-phone').value = '';
+      document.getElementById('form-studentid').value = '';
+      document.getElementById('form-subject').value = '';
+      document.getElementById('form-reason').value = '';
+      document.getElementById('form-consent').checked = false;
+      
+      updateStep1Button();
+    }
+
+    // History functions
+    function filterBookings(filterType) {
+      currentFilter = filterType;
+      
+      // Update filter buttons
+      document.getElementById('filter-all').className = 'px-4 py-2 rounded-lg text-sm bg-white text-gray-700 border';
+      document.getElementById('filter-upcoming').className = 'px-4 py-2 rounded-lg text-sm bg-white text-gray-700 border';
+      document.getElementById('filter-byDate').className = 'px-4 py-2 rounded-lg text-sm bg-white text-gray-700 border';
+      document.getElementById('filter-' + filterType).className = 'px-4 py-2 rounded-lg text-sm bg-indigo-600 text-white';
+      
+      renderBookings();
+    }
+
+    function renderBookings() {
+      const container = document.getElementById('bookings-list');
+      let filteredBookings = [...allBookings];
+      
+      console.log('Rendering bookings:', filteredBookings);
+      console.log('Current filter:', currentFilter);
+      
+      if (currentFilter === 'upcoming') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        filteredBookings = filteredBookings.filter(b => {
+          const bookingDate = new Date(b.date);
+          return bookingDate >= today;
+        });
+      } else if (currentFilter === 'byDate') {
+        filteredBookings.sort((a, b) => new Date(a.date) - new Date(b.date));
+      }
+      
+      if (filteredBookings.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white rounded-lg shadow p-8 text-center">
+            <p class="text-gray-500" data-th="ยังไม่มีประวัติการจอง" data-en="No booking history">${currentLanguage === 'th' ? 'ยังไม่มีประวัติการจอง' : 'No booking history'}</p>
+          </div>
+        `;
+        return;
+      }
+      
+      const labels = {
+        confirmed: currentLanguage === 'th' ? 'ยืนยันแล้ว' : 'Confirmed',
+        date: currentLanguage === 'th' ? 'วันที่' : 'Date',
+        time: currentLanguage === 'th' ? 'เวลา' : 'Time',
+        subject: currentLanguage === 'th' ? 'วิชา' : 'Subject',
+        reason: currentLanguage === 'th' ? 'เหตุผล' : 'Reason',
+        cancel: currentLanguage === 'th' ? 'ยกเลิกการจอง' : 'Cancel Booking',
+        bookingId: currentLanguage === 'th' ? 'รหัสการจอง' : 'Booking ID'
+      };
+      
+      container.innerHTML = filteredBookings.map(booking => {
+        console.log('Rendering booking:', booking);
+        const isPast = new Date(booking.date) < new Date();
+        
+        return `
+          <div class="bg-white rounded-lg shadow p-4 md:p-6 hover:shadow-md transition">
+            <div class="flex flex-col md:flex-row justify-between items-start mb-4 gap-3">
+              <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-800">${booking.room || 'N/A'} - ${currentLanguage === 'th' ? 'เครื่องที่' : 'Computer'} ${booking.computer || 'N/A'}</h3>
+                <p class="text-gray-600 text-sm">${booking.os || 'N/A'} | ${(booking.usage || []).join(', ')}</p>
+                <p class="text-xs text-gray-500 mt-1">${labels.bookingId}: ${booking.id}</p>
+              </div>
+              <div class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                <span class="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 text-center">
+                  ${labels.confirmed}
+                </span>
+                ${!isPast ? `
+                  <button onclick="cancelBooking('${booking.id}')" class="px-3 py-1 rounded-lg text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 transition">
+                    ${labels.cancel}
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <p class="text-gray-500">${labels.date}</p>
+                <p class="text-gray-800 font-medium">${formatDate(booking.date)}</p>
+              </div>
+              <div>
+                <p class="text-gray-500">${labels.time}</p>
+                <p class="text-gray-800 font-medium">${booking.time || 'N/A'}</p>
+              </div>
+              <div>
+                <p class="text-gray-500">${labels.subject}</p>
+                <p class="text-gray-800 font-medium">${booking.subject || 'N/A'}</p>
+              </div>
+              <div>
+                <p class="text-gray-500">${labels.reason}</p>
+                <p class="text-gray-800 font-medium">${booking.reason || 'N/A'}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    function cancelBooking(bookingId) {
+      const confirmMsg = currentLanguage === 'th' ? 
+        'ต้องการยกเลิกการจองนี้ใช่หรือไม่?' : 
+        'Do you want to cancel this booking?';
+      
+      if (!confirm(confirmMsg)) return;
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            alert(result.message);
+            loadUserBookings();
+          } else {
+            alert(result.error);
+          }
+        })
+        .withFailureHandler(function(error) {
+          alert((currentLanguage === 'th' ? 'เกิดข้อผิดพลาด: ' : 'Error: ') + error.message);
+        })
+        .cancelBooking(bookingId);
+    }
+
+    function formatDate(dateStr) {
+      try {
+        if (!dateStr) return 'N/A';
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return dateStr; // ถ้าแปลงไม่ได้ให้แสดงค่าเดิม
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        return date.toLocaleDateString('th-TH', options);
+      } catch (e) {
+        console.error('Error formatting date:', e);
+        return dateStr;
+      }
+    }
+
+    // Schedule functions
+    function loadSchedule() {
+      const selectedDate = document.getElementById('schedule-date').value;
+      
+      if (!selectedDate) {
+        alert('กรุณาเลือกวันที่');
+        return;
+      }
+      
+      // แสดง loading
+      document.getElementById('schedule-loading').classList.remove('hidden');
+      document.getElementById('schedule-container').classList.add('hidden');
+      document.getElementById('schedule-stats').innerHTML = '';
+      
+      google.script.run
+        .withSuccessHandler(function(bookings) {
+          console.log('Schedule bookings:', bookings);
+          renderSchedule(bookings, selectedDate);
+          
+          // ซ่อน loading
+          document.getElementById('schedule-loading').classList.add('hidden');
+          document.getElementById('schedule-container').classList.remove('hidden');
+          document.getElementById('schedule-container').classList.add('fade-in');
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error loading schedule:', error);
+          alert('เกิดข้อผิดพลาดในการโหลดตาราง');
+          
+          // ซ่อน loading
+          document.getElementById('schedule-loading').classList.add('hidden');
+          document.getElementById('schedule-container').classList.remove('hidden');
+        })
+        .getAllBookings(selectedDate);
+    }
+
+    function renderSchedule(bookings, selectedDate) {
+      const tbody = document.getElementById('schedule-tbody');
+      
+      if (allRooms.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">กำลังโหลดข้อมูล...</td></tr>';
+        return;
+      }
+      
+      const rows = [];
+      let totalSlots = 0;
+      let bookedSlots = 0;
+      let myBookings = 0;
+      
+      allRooms.forEach(room => {
+        room.computers.forEach(computer => {
+          totalSlots += 2; // เช้า + บ่าย
+          
+          // Check if booked
+          const morningBooking = bookings.find(b => 
+            b.room === room.id && b.computer === computer.id && 
+            (b.time === 'เช้า' || b.time === 'ทั้งวัน')
+          );
+          
+          const afternoonBooking = bookings.find(b => 
+            b.room === room.id && b.computer === computer.id && 
+            (b.time === 'บ่าย' || b.time === 'ทั้งวัน')
+          );
+          
+          if (morningBooking) {
+            bookedSlots++;
+            if (morningBooking.email === currentUser?.email) myBookings++;
+          }
+          if (afternoonBooking) {
+            bookedSlots++;
+            if (afternoonBooking.email === currentUser?.email) myBookings++;
+          }
+          
+          const morningIsMyBooking = morningBooking && morningBooking.email === currentUser?.email;
+          const afternoonIsMyBooking = afternoonBooking && afternoonBooking.email === currentUser?.email;
+          
+          rows.push(`
+            <tr class="hover:bg-gray-50 transition">
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${room.name}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${computer.id}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                  ${computer.os}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-center">
+                ${morningBooking ? `
+                  <div class="inline-flex flex-col items-center">
+                    <span class="px-3 py-1 text-xs rounded-full font-medium ${morningIsMyBooking ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' : 'bg-red-100 text-red-800 border border-red-300'}">
+                      ${morningIsMyBooking ? '🔑 จองของคุณ' : '🔒 จองแล้ว'}
+                    </span>
+                    <span class="text-xs text-gray-500 mt-1">${morningBooking.firstName} ${morningBooking.lastName}</span>
+                  </div>
+                ` : `
+                  <span class="px-3 py-1 text-xs rounded-full font-medium bg-green-100 text-green-800 border border-green-300">
+                    ✓ ว่าง
+                  </span>
+                `}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-center">
+                ${afternoonBooking ? `
+                  <div class="inline-flex flex-col items-center">
+                    <span class="px-3 py-1 text-xs rounded-full font-medium ${afternoonIsMyBooking ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' : 'bg-red-100 text-red-800 border border-red-300'}">
+                      ${afternoonIsMyBooking ? '🔑 จองของคุณ' : '🔒 จองแล้ว'}
+                    </span>
+                    <span class="text-xs text-gray-500 mt-1">${afternoonBooking.firstName} ${afternoonBooking.lastName}</span>
+                  </div>
+                ` : `
+                  <span class="px-3 py-1 text-xs rounded-full font-medium bg-green-100 text-green-800 border border-green-300">
+                    ✓ ว่าง
+                  </span>
+                `}
+              </td>
+            </tr>
+          `);
+        });
+      });
+      
+      tbody.innerHTML = rows.join('');
+      
+      // Render stats
+      renderScheduleStats(totalSlots, bookedSlots, myBookings, selectedDate);
+    }
+    
+    function renderScheduleStats(total, booked, mine, date) {
+      const available = total - booked;
+      const bookedPercent = Math.round((booked / total) * 100);
+      const availablePercent = Math.round((available / total) * 100);
+      
+      document.getElementById('schedule-stats').innerHTML = `
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-medium text-blue-900">ช่วงเวลาทั้งหมด</span>
+            <span class="text-2xl font-bold text-blue-700">${total}</span>
+          </div>
+          <p class="text-xs text-blue-600">วันที่ ${formatDate(date)}</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4 border border-red-200">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-medium text-red-900">จองแล้ว</span>
+            <span class="text-2xl font-bold text-red-700">${booked}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex-1 bg-red-200 rounded-full h-2">
+              <div class="bg-red-600 h-2 rounded-full transition-all" style="width: ${bookedPercent}%"></div>
+            </div>
+            <span class="text-xs font-medium text-red-700">${bookedPercent}%</span>
+          </div>
+        </div>
+        
+        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-medium text-green-900">ว่าง</span>
+            <span class="text-2xl font-bold text-green-700">${available}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex-1 bg-green-200 rounded-full h-2">
+              <div class="bg-green-600 h-2 rounded-full transition-all" style="width: ${availablePercent}%"></div>
+            </div>
+            <span class="text-xs font-medium text-green-700">${availablePercent}%</span>
+          </div>
+        </div>
+        
+        ${mine > 0 ? `
+          <div class="col-span-3 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-4 border border-yellow-200">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-2xl">🔑</span>
+                <span class="text-sm font-medium text-yellow-900">การจองของคุณในวันนี้</span>
+              </div>
+              <span class="text-2xl font-bold text-yellow-700">${mine}</span>
+            </div>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    // Profile functions
+    function saveProfile() {
+      const profile = {
+        firstName: document.getElementById('profile-firstname').value,
+        lastName: document.getElementById('profile-lastname').value,
+        phone: document.getElementById('profile-phone').value,
+        studentId: document.getElementById('profile-studentid').value,
+        language: document.getElementById('profile-language').value
+      };
+      
+      if (!profile.firstName || !profile.lastName || !profile.phone || !profile.studentId) {
+        alert(currentLanguage === 'th' ? 'กรุณากรอกข้อมูลให้ครบถ้วน' : 'Please fill in all fields');
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            alert(currentLanguage === 'th' ? 'บันทึกข้อมูลส่วนตัวสำเร็จ' : 'Profile saved successfully');
+            userProfile = profile;
+            currentLanguage = profile.language;
+            document.getElementById('header-language').value = currentLanguage;
+            updateLanguage();
+          }
+        })
+        .withFailureHandler(function(error) {
+          alert((currentLanguage === 'th' ? 'เกิดข้อผิดพลาด: ' : 'Error: ') + error.message);
+        })
+        .saveUserProfile(profile);
+    }
+    
+    // Config functions
+    function loadConfig() {
+      google.script.run
+        .withSuccessHandler(function(configStr) {
+          let config;
+          try {
+            config = JSON.parse(configStr);
+          } catch (e) {
+            console.error('Error parsing config JSON:', e, configStr);
+            return;
+          }
+
+          console.log('✅ Config from server:', config);
+
+          document.getElementById('config-start-date').value = config.bookingStartDate || '';
+          document.getElementById('config-end-date').value = config.bookingEndDate || '';
+          document.getElementById('config-email-enabled').checked =
+            config.emailEnabled === 'true' || config.emailEnabled === true;
+          document.getElementById('config-admin-email').value = config.adminEmail || '';
+        })
+        .withFailureHandler(function(err) {
+          console.error('❌ Error loading config:', err);
+          alert('Error loading config: ' + err.message);
+        })
+        .getConfig();
+    }
+    
+    function saveConfig() {
+      const config = {
+        bookingStartDate: document.getElementById('config-start-date').value,
+        bookingEndDate: document.getElementById('config-end-date').value,
+        emailEnabled: document.getElementById('config-email-enabled').checked ? 'true' : 'false',
+        adminEmail: document.getElementById('config-admin-email').value
+      };
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            alert(currentLanguage === 'th' ? 'บันทึกการตั้งค่าสำเร็จ' : 'Settings saved successfully');
+            systemConfig = config;
+          }
+        })
+        .withFailureHandler(function(error) {
+          alert((currentLanguage === 'th' ? 'เกิดข้อผิดพลาด: ' : 'Error: ') + error.message);
+        })
+        .saveConfig(config);
+    }
+    
+    function loadBlockedDates() {
+      google.script.run
+        .withSuccessHandler(function(dates) {
+          blockedDates = dates;
+          renderBlockedDates();
+        })
+        .getBlockedDates();
+    }
+    
+    function renderBlockedDates() {
+      const container = document.getElementById('blocked-dates-list');
+      
+      if (blockedDates.length === 0) {
+        container.innerHTML = `<p class="text-gray-500 text-center py-4">${currentLanguage === 'th' ? 'ไม่มีวันที่ปิดการจอง' : 'No blocked dates'}</p>`;
+        return;
+      }
+      
+      // Group by date
+      const groupedByDate = {};
+      blockedDates.forEach(item => {
+        if (!groupedByDate[item.date]) {
+          groupedByDate[item.date] = [];
+        }
+        groupedByDate[item.date].push(item);
+      });
+      
+      container.innerHTML = Object.keys(groupedByDate).map(date => `
+        <div class="bg-gray-50 rounded-lg border p-4">
+          <h4 class="font-semibold text-gray-800 mb-3">${formatDate(date)}</h4>
+          <div class="space-y-2">
+            ${groupedByDate[date].map(item => `
+              <div class="flex flex-col md:flex-row items-start md:items-center justify-between p-3 bg-white rounded border gap-2">
+                <div class="flex-1">
+                  <p class="font-medium text-gray-800">${item.room ? item.room + ' - ' + item.computer : (currentLanguage === 'th' ? 'ทุกห้อง' : 'All Rooms')}</p>
+                  <p class="text-sm text-gray-600">${currentLanguage === 'th' ? item.reason : item.reasonEN}</p>
+                </div>
+                <button onclick="removeBlockedDate('${item.date}', '${item.room}', '${item.computer}')" class="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm whitespace-nowrap">
+                  ${currentLanguage === 'th' ? 'ลบ' : 'Remove'}
+                </button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    function addBlockedDate() {
+      const date = document.getElementById('blocked-date').value;
+      const room = document.getElementById('blocked-room').value;
+      const computer = document.getElementById('blocked-computer').value;
+      const reasonTH = document.getElementById('blocked-reason-th').value;
+      const reasonEN = document.getElementById('blocked-reason-en').value;
+      
+      if (!date || !reasonTH || !reasonEN) {
+        alert(currentLanguage === 'th' ? 'กรุณากรอกวันที่และเหตุผล (ทั้ง 2 ภาษา)' : 'Please fill in date and reason (both languages)');
+        return;
+      }
+      
+      if (room && !computer) {
+        alert(currentLanguage === 'th' ? 'กรุณาเลือกเครื่อง' : 'Please select computer');
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            document.getElementById('blocked-date').value = '';
+            document.getElementById('blocked-room').value = '';
+            document.getElementById('blocked-computer').value = '';
+            document.getElementById('blocked-reason-th').value = '';
+            document.getElementById('blocked-reason-en').value = '';
+            updateBlockedComputers();
+            loadBlockedDates();
+          }
+        })
+        .addBlockedDate(date, room, computer, reasonTH, reasonEN);
+    }
+    
+    function removeBlockedDate(date, room, computer) {
+      if (!confirm(currentLanguage === 'th' ? 'ต้องการลบวันนี้?' : 'Remove this date?')) {
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            loadBlockedDates();
+          }
+        })
+        .removeBlockedDate(date, room, computer);
+    }
+    
+    function isDateBlocked(dateStr) {
+      return blockedDates.some(item => 
+        item.date === dateStr && 
+        (!item.room || (item.room === selectedRoom && item.computer === selectedComputer))
+      );
+    }
+    
+    function getBlockedDateReason(dateStr) {
+      const item = blockedDates.find(item => 
+        item.date === dateStr && 
+        (!item.room || (item.room === selectedRoom && item.computer === selectedComputer))
+      );
+      if (!item) return null;
+      return currentLanguage === 'th' ? item.reason : item.reasonEN;
+    }
+  </script>
+</body>
+
+</html>
