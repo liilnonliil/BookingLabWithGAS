@@ -988,19 +988,33 @@
           <h4 class="font-semibold text-gray-800 mb-3">${room.name}</h4>
           <div class="grid grid-cols-2 gap-2">
             ${room.computers.map(computer => {
-        // ตรวจสอบว่าเครื่องนี้ถูกจองไปแล้วหรือยัง
+        // ตรวจสอบว่าเครื่องนี้ถูกจองไปแล้ว
         const isBooked = checkIfBooked(room.id, computer.id);
+
+        // ตรวจสอบว่าเครื่องนี้ถูกบล็อกไปแล้ว
+        const isComputerBlocked = isComputerBlockedOnDate(selectedDate, room.id, computer.id);
+        const blockedInfo = getBlockedComputerInfo(selectedDate, room.id, computer.id);
+
         const bookingInfo = getBookingInfo(room.id, computer.id);
+
+        // ถ้า booked หรือ blocked ให้ disable
+        const isDisabled = isBooked || isComputerBlocked;
 
         return `
                 <button onclick="selectRoomComputer('${room.id}', '${computer.id}')" 
                         id="room-${room.id}-${computer.id}"
-                        class="p-3 border-2 rounded-lg text-left text-sm transition-all ${isBooked ? 'border-red-300 bg-red-50 opacity-60 cursor-not-allowed' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'}"
-                        ${isBooked ? 'disabled' : ''}>
+                        class="p-3 border-2 rounded-lg text-left text-sm transition-all ${isDisabled ? 'border-red-300 bg-red-50 opacity-60 cursor-not-allowed' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'}"
+                        ${isDisabled ? 'disabled' : ''}>
                   <p class="font-medium">เครื่องที่ ${computer.id}</p>
                   <p class="text-xs text-gray-600">${computer.os}</p>
                   <p class="text-xs text-gray-500">${computer.specs.join(', ')}</p>
-                  ${bookingInfo ? `<p class="text-xs text-red-600 mt-1 font-medium">🔒 ${bookingInfo}</p>` : '<p class="text-xs text-green-600 mt-1 font-medium">✓ ว่าง</p>'}
+                  ${isComputerBlocked ?
+            `<p class="text-xs text-red-600 mt-1 font-medium">🔒 ${blockedInfo}</p>` :
+            (bookingInfo ?
+              `<p class="text-xs text-red-600 mt-1 font-medium">🔒 ${bookingInfo}</p>` :
+              '<p class="text-xs text-green-600 mt-1 font-medium">✓ ว่าง</p>'
+            )
+          }
                 </button>
               `;
       }).join('')}
@@ -1029,6 +1043,26 @@
 
         return false;
       });
+    }
+
+    /** ฟังก์ชันใหม่: ตรวจสอบว่าเครื่องถูกบล็อกหรือไม่ */
+    function isComputerBlockedOnDate(dateStr, roomId, computerId) {
+      return blockedDates.some(blocked =>
+        blocked.date === dateStr &&
+        blocked.room === roomId &&
+        blocked.computer === computerId
+      );
+    }
+
+    // ฟังก์ชันใหม่: ดึงข้อมูลการบล็อก
+    function getBlockedComputerInfo(dateStr, roomId, computerId) {
+      const blocked = blockedDates.find(b =>
+        b.date === dateStr &&
+        b.room === roomId &&
+        b.computer === computerId
+      );
+      if (!blocked) return null;
+      return currentLanguage === 'th' ? blocked.reason : blocked.reasonEN;
     }
 
     function getBookingInfo(roomId, computerId) {
@@ -1067,17 +1101,15 @@
         return;
       }
 
-      selectedRoom = roomId;
-      selectedComputer = computerId;
-
-      // ตรวจสอบว่าเครื่องนี้ปิดจองหรือไม่
-      if (isDateBlocked(selectedDate)) {
-        const reason = getBlockedDateReason(selectedDate);
+      // ตรวจสอบว่าถูกบล็อกหรือไม่
+      if (isComputerBlockedOnDate(selectedDate, roomId, computerId)) {
+        const reason = getBlockedComputerInfo(selectedDate, roomId, computerId);
         alert((currentLanguage === 'th' ? 'เครื่องนี้ปิดให้บริการ: ' : 'This computer is blocked: ') + reason);
-        selectedRoom = '';
-        selectedComputer = '';
         return;
       }
+
+      selectedRoom = roomId;
+      selectedComputer = computerId;
 
       // Reset all buttons
       document.querySelectorAll('[id^="room-"]').forEach(btn => {
