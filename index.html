@@ -183,7 +183,7 @@
           <span class="nav-text" data-th="โปรไฟล์" data-en="Profile">โปรไฟล์</span>
         </button>
         <button onclick="showPage('config')" id="nav-config"
-          class="py-3 px-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800">
+          class="hidden py-3 px-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800">
           <span class="nav-text" data-th="ตั้งค่า" data-en="Settings">ตั้งค่า</span>
         </button>
       </div>
@@ -221,7 +221,7 @@
     <!-- Booking Page -->
     <div id="page-booking" class="page-content hidden">
       <div class="max-w-3xl mx-auto">
-        <h2 class="text-2xl font-bold text-gray-800 mb-6">จองห้องและเครื่องคอม</h2>
+        <h2 class="text-2xl font-bold text-gray-800 mb-6" id="new-booking">จองห้องและเครื่องคอม</h2>
 
         <!-- Step Indicator -->
         <div class="flex items-center justify-between mb-8">
@@ -278,6 +278,8 @@
             <div class="space-y-6">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">วันที่</label>
+                <div class="text-sm text-gray-500 mb-1" id="date-booking-start-end">โปรดเลือกวันที่ต้องการจอง
+                  (ระบบจะไม่แสดงห้องที่ถูกจองแล้วในวันนั้น)</div>
                 <input type="date" id="booking-date" onchange="updateRoomList()"
                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
               </div>
@@ -555,26 +557,41 @@
 
           <div class="mb-4 p-4 bg-gray-50 rounded-lg">
             <div class="space-y-3">
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
                   <label class="block text-xs text-gray-600 mb-1" data-th="วันที่" data-en="Date">วันที่</label>
                   <input type="date" id="blocked-date"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                 </div>
                 <div>
-                  <label class="block text-xs text-gray-600 mb-1" data-th="ห้อง" data-en="Room">ห้อง</label>
-                  <select id="blocked-room" onchange="updateBlockedComputers()"
+                  <label class="block text-xs text-gray-600 mb-1" data-th="ประเภท" data-en="Type">ประเภท</label>
+                  <select id="blocked-type" onchange="updateBlockedTypeFields()"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    <option value="">-- เลือกห้อง --</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-600 mb-1" data-th="เครื่อง" data-en="Computer">เครื่อง</label>
-                  <select id="blocked-computer" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    <option value="">-- เลือกเครื่อง --</option>
+                    <option value="all">ทั้งหมด (วันหยุด)</option>
+                    <option value="specific">ห้องและเครื่องเฉพาะ</option>
                   </select>
                 </div>
               </div>
+
+              <!-- Fields สำหรับ specific room/computer -->
+              <div id="blocked-specific-fields" class="hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-xs text-gray-600 mb-1" data-th="ห้อง" data-en="Room">ห้อง</label>
+                    <select id="blocked-room" onchange="updateBlockedComputers()"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                      <option value="">-- เลือกห้อง --</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-600 mb-1" data-th="เครื่อง" data-en="Computer">เครื่อง</label>
+                    <select id="blocked-computer" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                      <option value="">-- เลือกเครื่อง --</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
                   <label class="block text-xs text-gray-600 mb-1" data-th="เหตุผล (ไทย)" data-en="Reason (Thai)">เหตุผล
@@ -666,14 +683,98 @@
     // Initialize
     window.onload = function () {
       loadCurrentUser();
+      checkAdminAccess();
+      loadConfig();
       loadRooms();
       loadUserProfile();
       loadUserBookings();
-      loadConfig();
       loadBlockedDates();
       initializeUsageOptions();
-      setMinDate();
+
+      // ✅ ให้ loadConfig เสร็จก่อนแล้วค่อยทำ setMinDate
+      setTimeout(() => {
+        setMinDate();
+      }, 500);
     };
+
+    // ✅ ตรวจสอบสิทธิ์ Admin
+    function checkAdminAccess() {
+      google.script.run
+        .withSuccessHandler(function (result) {
+          const configBtn = document.getElementById('nav-config');
+          if (!result.isAdmin) {
+            // ซ่อนปุ่ม Config
+            configBtn.style.display = 'none';
+            configBtn.classList.add('hidden');
+          } else {
+            // แสดงปุ่ม Config
+            configBtn.style.display = 'inline-block';
+            configBtn.classList.remove('hidden');
+          }
+        })
+        .withFailureHandler(function (error) {
+          console.error('Error checking admin access:', error);
+          // ซ่อกปุ่ม Config เพื่อความปลอดภัย
+          document.getElementById('nav-config').style.display = 'none';
+        })
+        .checkAdminAccess();
+    }
+
+    // Page navigation
+    function showPage(pageName) {
+      // ตรวจสอบสิทธิ์ก่อนเปิด config page
+      if (pageName === 'config') {
+        google.script.run
+          .withSuccessHandler(function (result) {
+            if (!result.isAdmin) {
+              alert(currentLanguage === 'th' ?
+                'คุณไม่มีสิทธิ์เข้าถึงหน้านี้' :
+                'You do not have permission to access this page');
+              return;
+            }
+
+            // ถ้า admin ให้ดำเนินการต่อ
+            proceedShowPage(pageName);
+          })
+          .checkAdminAccess();
+        return;
+      }
+
+      proceedShowPage(pageName);
+    }
+
+    function proceedShowPage(pageName) {
+      // Hide all pages
+      document.querySelectorAll('.page-content').forEach(page => {
+        page.classList.add('hidden');
+      });
+
+      // Remove active class from all nav buttons
+      document.querySelectorAll('nav button').forEach(btn => {
+        btn.className = 'py-3 px-4 border-b-2 border-transparent text-gray-600 hover:text-gray-800';
+      });
+
+      // Show selected page
+      document.getElementById('page-' + pageName).classList.remove('hidden');
+      document.getElementById('nav-' + pageName).className = 'py-3 px-4 border-b-2 border-indigo-600 text-indigo-600';
+
+      // Reset booking form when going to booking page
+      if (pageName === 'booking') {
+        resetBookingForm();
+      }
+
+      // Load schedule when going to schedule page
+      if (pageName === 'schedule') {
+        loadScheduleBlockedDates();
+        loadSchedule();
+      }
+
+      // Load config when going to config page
+      if (pageName === 'config') {
+        loadConfig();
+        loadBlockedDates();
+      }
+    }
 
     function loadCurrentUser() {
       google.script.run.withSuccessHandler(function (user) {
@@ -757,11 +858,17 @@
         }
       });
 
+      const endDate = systemConfig.bookingEndDate || '';
+
       // Update page title
       if (currentLanguage === 'en') {
         document.getElementById('app-title').textContent = 'Room & Computer Booking System';
+        document.getElementById('new-booking').textContent = 'New Booking and Computer';
+        document.getElementById('date-booking-start-end').textContent = 'select a booking date (the system will hide already booked rooms on that date) End date: ' + (endDate || 'No limit');
       } else {
         document.getElementById('app-title').textContent = 'ระบบจองห้องและเครื่องคอม';
+        document.getElementById('new-booking').textContent = 'จองห้องและเครื่องคอม';
+        document.getElementById('date-booking-start-end').textContent = 'โปรดเลือกวันที่ต้องการจอง (ระบบจะไม่แสดงห้องที่ถูกจองแล้วในวันนั้น) วันสิ้นสุดวันที่เปิดให้จอง: ' + (endDate || 'ไม่จำกัด');
       }
     }
 
@@ -791,8 +898,25 @@
 
     function setMinDate() {
       const today = new Date().toISOString().split('T')[0];
-      document.getElementById('booking-date').min = today;
-      document.getElementById('schedule-date').value = today;
+      const bookingDateInput = document.getElementById('booking-date');
+      const scheduleDate = document.getElementById('schedule-date');
+
+      // ตั้งค่า min = วันนี้ หรือ bookingStartDate
+      if (systemConfig && systemConfig.bookingStartDate) {
+        bookingDateInput.min = systemConfig.bookingStartDate;
+        scheduleDate.min = systemConfig.bookingStartDate;
+      } else {
+        bookingDateInput.min = today;
+        scheduleDate.min = today;
+      }
+
+      // ตั้งค่า max = bookingEndDate จาก config
+      if (systemConfig && systemConfig.bookingEndDate) {
+        bookingDateInput.max = systemConfig.bookingEndDate;
+        scheduleDate.max = systemConfig.bookingEndDate;
+      }
+
+      scheduleDate.value = today;
     }
 
     // Page navigation
@@ -901,6 +1025,17 @@
         return;
       }
 
+      const today = new Date().toISOString().split('T')[0];
+
+      // ตรวจสอบว่าวันที่เลือกต่ำกว่าวันนี้หรือไม่
+      if (selectedDate < today) {
+        alert(currentLanguage === 'th' ?
+          'ไม่สามารถจองในอดีตได้' :
+          'Cannot book in the past');
+        document.getElementById('booking-date').value = '';
+        return;
+      }
+
       // ตรวจสอบว่าวันที่เลือกอยู่ในช่วงที่อนุญาตหรือไม่
       if (systemConfig.bookingStartDate && selectedDate < systemConfig.bookingStartDate) {
         alert(currentLanguage === 'th' ?
@@ -978,6 +1113,20 @@
       const container = document.getElementById('rooms-list');
       const filteredRooms = getFilteredRooms();
 
+      // ตรวจสอบว่าเป็นวันหยุดทั้งวันหรือไม่
+      const isDayBlocked = isDateBlocked(selectedDate);
+
+      if (isDayBlocked) {
+        const reason = getBlockedDateReason(selectedDate);
+        container.innerHTML = `
+          <div class="border-2 border-red-300 rounded-lg p-6 bg-red-50 text-center">
+            <p class="text-lg font-semibold text-red-700 mb-2">🔒 วันนี้ปิดให้บริการ</p>
+            <p class="text-red-600">${reason}</p>
+          </div>
+        `;
+        return;
+      }
+
       if (filteredRooms.length === 0) {
         container.innerHTML = '<p class="text-gray-500 text-center py-4">ไม่พบห้องและเครื่องที่ตรงตามเงื่อนไข</p>';
         return;
@@ -1048,21 +1197,51 @@
     /** ฟังก์ชันใหม่: ตรวจสอบว่าเครื่องถูกบล็อกหรือไม่ */
     function isComputerBlockedOnDate(dateStr, roomId, computerId) {
       return blockedDates.some(blocked =>
-        blocked.date === dateStr &&
-        blocked.room === roomId &&
-        blocked.computer === computerId
+        blocked.date === dateStr && (
+          // บล็อกทั้งหมด (ไม่มีห้องและเครื่องที่ระบุ) = วันหยุด
+          (!blocked.room && !blocked.computer) ||
+          // บล็อกห้องและเครื่องเฉพาะ
+          (blocked.room === roomId && blocked.computer === computerId)
+        )
       );
     }
 
     // ฟังก์ชันใหม่: ดึงข้อมูลการบล็อก
     function getBlockedComputerInfo(dateStr, roomId, computerId) {
       const blocked = blockedDates.find(b =>
-        b.date === dateStr &&
-        b.room === roomId &&
-        b.computer === computerId
+        b.date === dateStr && (
+          (!b.room && !b.computer) ||
+          (b.room === roomId && b.computer === computerId)
+        )
       );
       if (!blocked) return null;
       return currentLanguage === 'th' ? blocked.reason : blocked.reasonEN;
+    }
+
+
+    function updateBlockedTypeFields() {
+      const type = document.getElementById('blocked-type').value;
+      const specificFields = document.getElementById('blocked-specific-fields');
+
+      if (type === 'all') {
+        specificFields.classList.add('hidden');
+        // รีเซ็ตค่า
+        document.getElementById('blocked-room').value = '';
+        document.getElementById('blocked-computer').value = '';
+      } else {
+        specificFields.classList.remove('hidden');
+      }
+    }
+
+    function isComputerBlockedOnDate(dateStr, roomId, computerId) {
+      return blockedDates.some(blocked =>
+        blocked.date === dateStr && (
+          // บล็อกทั้งหมด (ไม่มีห้องและเครื่องที่ระบุ)
+          (!blocked.room && !blocked.computer) ||
+          // บล็อกห้องและเครื่องเฉพาะ
+          (blocked.room === roomId && blocked.computer === computerId)
+        )
+      );
     }
 
     function getBookingInfo(roomId, computerId) {
@@ -1444,6 +1623,10 @@
         return;
       }
 
+      // ตรวจสอบว่าเป็นวันหยุดทั้งวันหรือไม่
+      const isDayBlocked = isDateBlocked(selectedDate);
+      const dayBlockReason = isDayBlocked ? getBlockedDateReason(selectedDate) : '';
+
       const rows = [];
       let totalSlots = 0;
       let bookedSlots = 0;
@@ -1451,14 +1634,18 @@
 
       allRooms.forEach(room => {
         room.computers.forEach(computer => {
-          totalSlots += 2; // เช้า + บ่าย
+          if (!isDayBlocked) {
+            totalSlots += 2; // เช้า + บ่าย
+          }
+
           const blocked = [...blockedDates].find(b =>
             b.date === selectedDate &&
             b.computer === computer.id &&
             b.room === room.id
           );
-          const isBlocked = !!blocked;
-          const blockedReason = currentLanguage === 'th' ? (blocked ? blocked.reason : '') : (blocked ? blocked.reasonEN : '');
+          const isBlocked = !!blocked || isDayBlocked;
+          const blockedReason = isDayBlocked ? dayBlockReason :
+            (currentLanguage === 'th' ? (blocked ? blocked.reason : '') : (blocked ? blocked.reasonEN : ''));
 
           // Check if booked
           const morningBooking = bookings.find(b =>
@@ -1471,13 +1658,15 @@
             (b.time === 'บ่าย' || b.time === 'ทั้งวัน')
           );
 
-          if (morningBooking) {
-            bookedSlots++;
-            if (morningBooking.email === currentUser?.email) myBookings++;
-          }
-          if (afternoonBooking) {
-            bookedSlots++;
-            if (afternoonBooking.email === currentUser?.email) myBookings++;
+          if (!isDayBlocked) {
+            if (morningBooking) {
+              bookedSlots++;
+              if (morningBooking.email === currentUser?.email) myBookings++;
+            }
+            if (afternoonBooking) {
+              bookedSlots++;
+              if (afternoonBooking.email === currentUser?.email) myBookings++;
+            }
           }
 
           const morningIsMyBooking = morningBooking && morningBooking.email === currentUser?.email;
@@ -1495,12 +1684,12 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-center">
                   <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
-                    ${blockedReason}
+                    ${blockedReason || '🔒 ปิดให้บริการ'}
                   </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-center">
                   <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
-                    ${blockedReason}
+                    ${blockedReason || '🔒 ปิดให้บริการ'}
                   </span>
                 </td>
               </tr>
@@ -1550,13 +1739,28 @@
       tbody.innerHTML = rows.join('');
 
       // Render stats
-      renderScheduleStats(totalSlots, bookedSlots, myBookings, selectedDate);
+      renderScheduleStats(totalSlots, bookedSlots, myBookings, selectedDate, isDayBlocked, dayBlockReason);
     }
 
-    function renderScheduleStats(total, booked, mine, date) {
+    function renderScheduleStats(total, booked, mine, date, isDayBlocked, dayBlockReason) {
       const available = total - booked;
-      const bookedPercent = Math.round((booked / total) * 100);
-      const availablePercent = Math.round((available / total) * 100);
+      const bookedPercent = total > 0 ? Math.round((booked / total) * 100) : 0;
+      const availablePercent = total > 0 ? Math.round((available / total) * 100) : 0;
+
+      if (isDayBlocked) {
+        document.getElementById('schedule-stats').innerHTML = `
+          <div class="col-span-3 bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-6 border-2 border-red-300 text-center">
+            <div class="flex items-center justify-center gap-3 mb-2">
+              <span class="text-4xl">🔒</span>
+              <div class="text-left">
+                <p class="text-lg font-bold text-red-700">วันนี้ปิดให้บริการ</p>
+                <p class="text-red-600">${dayBlockReason}</p>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
 
       document.getElementById('schedule-stats').innerHTML = `
         <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
@@ -1606,7 +1810,6 @@
         ` : ''}
       `;
     }
-
     // Profile functions
     function saveProfile() {
       const profile = {
@@ -1671,7 +1874,14 @@
         })
         .withFailureHandler(function (err) {
           console.error('❌ Error loading config:', err);
-          alert('Error loading config: ' + err.message);
+          if (err.message.includes('Access Denied')) {
+            // alert(currentLanguage === 'th' ?
+            //   'คุณไม่มีสิทธิ์เข้าถึงหน้านี้' :
+            //   'You do not have permission to access this page');
+            showPage('history');
+          } else {
+            alert('Error loading config: ' + err.message);
+          }
         })
         .getConfig();
     }
@@ -1692,16 +1902,27 @@
           }
         })
         .withFailureHandler(function (error) {
-          alert((currentLanguage === 'th' ? 'เกิดข้อผิดพลาด: ' : 'Error: ') + error.message);
+          if (error.message.includes('Access Denied')) {
+            alert(currentLanguage === 'th' ?
+              'คุณไม่มีสิทธิ์แก้ไขการตั้งค่า' :
+              'You do not have permission to modify settings');
+          } else {
+            alert((currentLanguage === 'th' ? 'เกิดข้อผิดพลาด: ' : 'Error: ') + error.message);
+          }
         })
         .saveConfig(config);
     }
-
+    
     function loadBlockedDates() {
       google.script.run
         .withSuccessHandler(function (dates) {
           blockedDates = dates;
           renderBlockedDates();
+        })
+        .withFailureHandler(function (error) {
+          if (!error.message.includes('Access Denied')) {
+            console.error('Error loading blocked dates:', error);
+          }
         })
         .getBlockedDates();
     }
@@ -1772,6 +1993,13 @@
             loadBlockedDates();
           }
         })
+        .withFailureHandler(function (error) {
+          if (error.message.includes('Access Denied')) {
+            alert(currentLanguage === 'th' ? 
+              'คุณไม่มีสิทธิ์เพิ่มวันปิดจอง' : 
+              'You do not have permission to add blocked dates');
+          }
+        })
         .addBlockedDate(date, room, computer, reasonTH, reasonEN);
     }
 
@@ -1786,20 +2014,30 @@
             loadBlockedDates();
           }
         })
+        .withFailureHandler(function (error) {
+          if (error.message.includes('Access Denied')) {
+            alert(currentLanguage === 'th' ? 
+              'คุณไม่มีสิทธิ์ลบวันปิดจอง' : 
+              'You do not have permission to remove blocked dates');
+          }
+        })
         .removeBlockedDate(date, room, computer);
     }
 
     function isDateBlocked(dateStr) {
+      // ตรวจสอบวันหยุดทั้งวัน (ไม่มี room และ computer)
       return blockedDates.some(item =>
         item.date === dateStr &&
-        (!item.room || (item.room === selectedRoom && item.computer === selectedComputer))
+        !item.room &&
+        !item.computer
       );
     }
 
     function getBlockedDateReason(dateStr) {
       const item = blockedDates.find(item =>
         item.date === dateStr &&
-        (!item.room || (item.room === selectedRoom && item.computer === selectedComputer))
+        !item.room &&
+        !item.computer
       );
       if (!item) return null;
       return currentLanguage === 'th' ? item.reason : item.reasonEN;

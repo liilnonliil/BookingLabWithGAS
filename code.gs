@@ -24,9 +24,13 @@ function getCurrentUser() {
     name: email.split('@')[0]
   };
 }
-
 // ดึงข้อมูล Config
 function getConfig() {
+  // ตรวจสอบสิทธิ์ Admin
+  if (!isAdmin()) {
+    throw new Error('Access Denied: Admin only');
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_NAMES.CONFIG);
   
@@ -39,7 +43,8 @@ function getConfig() {
       ['bookingStartDate', ''],
       ['bookingEndDate', ''],
       ['emailEnabled', 'true'],
-      ['adminEmail', Session.getActiveUser().getEmail()]
+      ['adminEmail', Session.getActiveUser().getEmail()],
+      ['adminUsers', Session.getActiveUser().getEmail()]
     ];
     sheet.getRange(2, 1, defaultConfig.length, 2).setValues(defaultConfig);
   }
@@ -56,6 +61,11 @@ function getConfig() {
 
 // บันทึก Config
 function saveConfig(configData) {
+  // ตรวจสอบสิทธิ์ Admin
+  if (!isAdmin()) {
+    throw new Error('Access Denied: Admin only');
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_NAMES.CONFIG);
   
@@ -86,6 +96,11 @@ function saveConfig(configData) {
 
 // ดึงวันที่ปิดจอง
 function getBlockedDates() {
+  // ตรวจสอบสิทธิ์ Admin
+  if (!isAdmin()) {
+    throw new Error('Access Denied: Admin only');
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_NAMES.BLOCKED_DATES);
   
@@ -115,6 +130,11 @@ function getBlockedDates() {
 
 // เพิ่มวันปิดจอง
 function addBlockedDate(dateStr, room, computer, reason, reasonEN) {
+  // ตรวจสอบสิทธิ์ Admin
+  if (!isAdmin()) {
+    throw new Error('Access Denied: Admin only');
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_NAMES.BLOCKED_DATES);
   
@@ -129,6 +149,11 @@ function addBlockedDate(dateStr, room, computer, reason, reasonEN) {
 
 // ลบวันปิดจอง
 function removeBlockedDate(dateStr, room, computer) {
+  // ตรวจสอบสิทธิ์ Admin
+  if (!isAdmin()) {
+    throw new Error('Access Denied: Admin only');
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_NAMES.BLOCKED_DATES);
   
@@ -145,6 +170,39 @@ function removeBlockedDate(dateStr, room, computer) {
   }
   
   return { success: false };
+}
+
+// ✅ ฟังก์ชันตรวจสอบสิทธิ์ Admin
+function isAdmin() {
+  const userEmail = Session.getActiveUser().getEmail();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let configSheet = ss.getSheetByName(SHEET_NAMES.CONFIG);
+  
+  if (!configSheet) {
+    // ถ้ายังไม่มี config sheet ให้ user แรก (เจ้าของ sheet) เป็น admin
+    return true;
+  }
+  
+  const data = configSheet.getDataRange().getValues();
+  
+  // หา adminUsers
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === 'adminUsers') {
+      const adminList = String(data[i][1]).split(',').map(e => e.trim());
+      return adminList.includes(userEmail);
+    }
+  }
+  
+  // ถ้าไม่มี adminUsers ให้ user แรกเป็น admin
+  return true;
+}
+
+// ✅ ฟังก์ชันตรวจสอบสิทธิ์ (ส่งกลับให้ frontend)
+function checkAdminAccess() {
+  return {
+    isAdmin: isAdmin(),
+    email: Session.getActiveUser().getEmail()
+  };
 }
 
 // ดึงข้อมูลห้องและเครื่องทั้งหมด
