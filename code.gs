@@ -172,7 +172,7 @@ function removeBlockedDate(dateStr, room, computer) {
   return { success: false };
 }
 
-// ✅ ฟังก์ชันตรวจสอบสิทธิ์ Admin
+// ✅ ฟังก์ชันตรวจสอบสิทธิ์ Admin (รองรับหลาย Admin)
 function isAdmin() {
   const userEmail = Session.getActiveUser().getEmail();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -197,12 +197,113 @@ function isAdmin() {
   return true;
 }
 
+// ✅ ดึงรายชื่อ Admin ทั้งหมด
+function getAdminUsers() {
+  if (!isAdmin()) {
+    throw new Error('Access Denied: Admin only');
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let configSheet = ss.getSheetByName(SHEET_NAMES.CONFIG);
+  
+  if (!configSheet) {
+    return [];
+  }
+  
+  const data = configSheet.getDataRange().getValues();
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === 'adminUsers') {
+      const adminList = String(data[i][1]).split(',').map(e => e.trim());
+      return adminList.filter(e => e); // ลบค่าว่าง
+    }
+  }
+  
+  return [];
+}
+
 // ✅ ฟังก์ชันตรวจสอบสิทธิ์ (ส่งกลับให้ frontend)
 function checkAdminAccess() {
   return {
     isAdmin: isAdmin(),
     email: Session.getActiveUser().getEmail()
   };
+}
+
+
+// ✅ เพิ่ม Admin ใหม่
+function addAdminUser(email) {
+  if (!isAdmin()) {
+    throw new Error('Access Denied: Admin only');
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let configSheet = ss.getSheetByName(SHEET_NAMES.CONFIG);
+  
+  if (!configSheet) {
+    configSheet = ss.insertSheet(SHEET_NAMES.CONFIG);
+    configSheet.getRange('A1:B1').setValues([['Key', 'Value']]);
+  }
+  
+  const data = configSheet.getDataRange().getValues();
+  
+  // หา adminUsers
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === 'adminUsers') {
+      const adminList = String(data[i][1]).split(',').map(e => e.trim());
+      
+      // ตรวจสอบซ้ำ
+      if (adminList.includes(email)) {
+        return { success: false, error: 'User is already admin' };
+      }
+      
+      adminList.push(email);
+      configSheet.getRange(i + 1, 2).setValue(adminList.join(', '));
+      return { success: true, message: 'Admin added successfully' };
+    }
+  }
+  
+  // ถ้าไม่มี adminUsers ให้สร้างใหม่
+  configSheet.appendRow(['adminUsers', email]);
+  return { success: true, message: 'Admin added successfully' };
+}
+
+// ✅ ลบ Admin
+function removeAdminUser(email) {
+  if (!isAdmin()) {
+    throw new Error('Access Denied: Admin only');
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let configSheet = ss.getSheetByName(SHEET_NAMES.CONFIG);
+  
+  if (!configSheet) {
+    return { success: false, error: 'Config sheet not found' };
+  }
+  
+  const data = configSheet.getDataRange().getValues();
+  
+  // หา adminUsers
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === 'adminUsers') {
+      const adminList = String(data[i][1]).split(',').map(e => e.trim());
+      const filteredList = adminList.filter(e => e !== email);
+      
+      if (filteredList.length === adminList.length) {
+        return { success: false, error: 'User is not admin' };
+      }
+      
+      // ตรวจสอบว่าต้องมี admin อย่างน้อย 1 คน
+      if (filteredList.length === 0) {
+        return { success: false, error: 'Must have at least one admin' };
+      }
+      
+      configSheet.getRange(i + 1, 2).setValue(filteredList.join(', '));
+      return { success: true, message: 'Admin removed successfully' };
+    }
+  }
+  
+  return { success: false, error: 'Admin users not found' };
 }
 
 // ดึงข้อมูลห้องและเครื่องทั้งหมด
